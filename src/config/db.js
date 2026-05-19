@@ -1,10 +1,11 @@
 const { MongoClient, ServerApiVersion } = require("mongodb");
 
+let client;
 let db;
 
 const connectDB = async () => {
   try {
-    const client = new MongoClient(process.env.MONGO_URI, {
+    client = new MongoClient(process.env.MONGO_URI, {
       serverApi: {
         version: ServerApiVersion.v1,
         strict: true,
@@ -19,9 +20,17 @@ const connectDB = async () => {
     console.log("✅ MongoDB Connected Successfully");
 
     db = client.db(process.env.DB_NAME);
-
   } catch (error) {
     console.error("❌ MongoDB Connection Failed:", error.message);
+    throw error;
+  }
+};
+
+const closeDB = async () => {
+  if (client) {
+    await client.close();
+    client = undefined;
+    db = undefined;
   }
 };
 
@@ -31,5 +40,6 @@ const getDB = () => {
 
 module.exports = {
   connectDB,
+  closeDB,
   getDB,
 };
