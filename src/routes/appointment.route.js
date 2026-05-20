@@ -5,7 +5,7 @@ const { getDB } = require("../config/db");
 
 const router = express.Router();
 
-const parseDoctorObjectId = (id) => {
+const parseObjectId = (id) => {
   if (id == null || typeof id !== "string" || id.trim() === "") {
     return null;
   }
@@ -21,6 +21,16 @@ const parseDoctorObjectId = (id) => {
   } catch {
     return null;
   }
+};
+
+const serializeAppointment = (doc) => {
+  if (!doc) return null;
+
+  return {
+    ...doc,
+    _id: String(doc._id),
+    doctorId: doc.doctorId ? String(doc.doctorId) : doc.doctorId,
+  };
 };
 
 // Create appointment
@@ -52,7 +62,7 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const doctorObjectId = parseDoctorObjectId(doctorId);
+    const doctorObjectId = parseObjectId(doctorId);
 
     if (!doctorObjectId) {
       return res.status(400).json({
@@ -95,8 +105,89 @@ router.post("/", async (req, res) => {
   }
 });
 
+// Update appointment by id
+router.put("/:id", async (req, res) => {
+  try {
+    const appointmentId = parseObjectId(req.params.id);
+
+    if (!appointmentId) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid appointment id",
+      });
+    }
+
+    const {
+      patientName,
+      gender,
+      phone,
+      appointmentDate,
+      appointmentTime,
+    } = req.body;
+
+    if (
+      !patientName ||
+      !gender ||
+      !phone ||
+      !appointmentDate ||
+      !appointmentTime
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required",
+      });
+    }
+
+    if (gender !== "Male" && gender !== "Female") {
+      return res.status(400).json({
+        success: false,
+        message: "Gender must be Male or Female",
+      });
+    }
+
+    const db = getDB();
+    const collection = db.collection("appointments");
+
+    const updateResult = await collection.updateOne(
+      { _id: appointmentId },
+      {
+        $set: {
+          patientName: patientName.trim(),
+          gender,
+          phone: phone.trim(),
+          appointmentDate,
+          appointmentTime,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    if (updateResult.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found",
+      });
+    }
+
+    const updated = await collection.findOne({
+      _id: appointmentId,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Appointment updated successfully",
+      data: serializeAppointment(updated),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
 // Get user appointments by email
-router.get("/:email", async (req, res) => {
+router.get("/user/:email", async (req, res) => {
   try {
     const db = getDB();
     const collection = db.collection("appointments");
@@ -108,11 +199,7 @@ router.get("/:email", async (req, res) => {
       .sort({ createdAt: -1 })
       .toArray();
 
-    const data = result.map((doc) => ({
-      ...doc,
-      _id: String(doc._id),
-      doctorId: doc.doctorId ? String(doc.doctorId) : doc.doctorId,
-    }));
+    const data = result.map(serializeAppointment);
 
     res.json({
       success: true,
