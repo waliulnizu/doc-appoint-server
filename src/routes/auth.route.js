@@ -4,16 +4,16 @@ const { getAuth } = require("../config/auth");
 
 const router = express.Router();
 
-router.all("/*splat", async (req, res) => {
-  const auth = getAuth();
+let nodeHandler;
 
-  if (typeof auth.handler === "function") {
-    return auth.handler(req, res);
+router.all("/*splat", async (req, res) => {
+  if (!nodeHandler) {
+    const { toNodeHandler } = await import("better-auth/node");
+
+    nodeHandler = toNodeHandler(getAuth());
   }
 
-  const { toNodeHandler } = await import("better-auth/node");
-
-  return toNodeHandler(auth)(req, res);
+  return nodeHandler(req, res);
 });
 
 module.exports = router;

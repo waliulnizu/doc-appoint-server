@@ -7,8 +7,16 @@ const authRoute = require("./routes/auth.route");
 
 const app = express();
 
-// Middlewares
-app.use(cors());
+const clientOrigin =
+  process.env.CLIENT_URL || "http://localhost:3000";
+
+// Auth cookies need credentials; wildcard "*" is not allowed then.
+app.use(
+  cors({
+    origin: clientOrigin,
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // Routes

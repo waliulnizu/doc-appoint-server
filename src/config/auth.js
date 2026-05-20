@@ -29,10 +29,23 @@ function initAuth(mongoClient) {
 
   const socialProviders = buildSocialProviders();
 
+  const baseURL =
+    process.env.BETTER_AUTH_URL ||
+    `http://localhost:${process.env.PORT || 5000}`;
+
+  const clientOrigin =
+    process.env.CLIENT_URL || "http://localhost:3000";
+
   auth = betterAuth({
+    baseURL,
+    secret: process.env.BETTER_AUTH_SECRET,
+    trustedOrigins: [clientOrigin],
     database: mongodbAdapter(
       mongoClient.db(dbName)
     ),
+    emailAndPassword: {
+      enabled: true,
+    },
     ...(Object.keys(socialProviders).length > 0
       ? { socialProviders }
       : {}),
