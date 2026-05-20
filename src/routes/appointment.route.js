@@ -186,6 +186,44 @@ router.put("/:id", async (req, res) => {
   }
 });
 
+// Delete appointment by id
+router.delete("/:id", async (req, res) => {
+  try {
+    const appointmentId = parseObjectId(req.params.id);
+
+    if (!appointmentId) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid appointment id",
+      });
+    }
+
+    const db = getDB();
+    const collection = db.collection("appointments");
+
+    const result = await collection.deleteOne({
+      _id: appointmentId,
+    });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Appointment deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
 // Get user appointments by email
 router.get("/user/:email", async (req, res) => {
   try {
