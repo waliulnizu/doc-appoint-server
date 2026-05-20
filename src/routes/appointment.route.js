@@ -1,27 +1,91 @@
 const express = require("express");
-const { getDB } = require("../config/db");
 const { ObjectId } = require("mongodb");
 
+const { getDB } = require("../config/db");
+
 const router = express.Router();
+
+const parseDoctorObjectId = (id) => {
+  if (id == null || typeof id !== "string" || id.trim() === "") {
+    return null;
+  }
+
+  const trimmed = id.trim();
+
+  if (!ObjectId.isValid(trimmed)) {
+    return null;
+  }
+
+  try {
+    return new ObjectId(trimmed);
+  } catch {
+    return null;
+  }
+};
 
 // Create appointment
 router.post("/", async (req, res) => {
   try {
+    const {
+      patientName,
+      userEmail,
+      gender,
+      phone,
+      appointmentDate,
+      appointmentTime,
+      doctorId,
+      doctorName,
+    } = req.body;
+
+    if (
+      !patientName ||
+      !userEmail ||
+      !gender ||
+      !phone ||
+      !appointmentDate ||
+      !appointmentTime ||
+      !doctorId
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required",
+      });
+    }
+
+    const doctorObjectId = parseDoctorObjectId(doctorId);
+
+    if (!doctorObjectId) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid doctor id",
+      });
+    }
+
     const db = getDB();
     const collection = db.collection("appointments");
 
-    const data = req.body;
-
-    const result = await collection.insertOne({
-      ...data,
-      doctorId: new ObjectId(data.doctorId),
+    const appointment = {
+      patientName: patientName.trim(),
+      userEmail: userEmail.trim(),
+      gender,
+      phone: phone.trim(),
+      appointmentDate,
+      appointmentTime,
+      doctorId: doctorObjectId,
+      doctorName: doctorName || "",
       createdAt: new Date(),
-    });
+    };
+
+    const result = await collection.insertOne(appointment);
 
     res.status(201).json({
       success: true,
       message: "Appointment created successfully",
-      result,
+      data: {
+        _id: String(result.insertedId),
+        ...appointment,
+        doctorId: String(doctorObjectId),
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -31,7 +95,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-// Get user appointments
+// Get user appointments by email
 router.get("/:email", async (req, res) => {
   try {
     const db = getDB();
@@ -41,11 +105,18 @@ router.get("/:email", async (req, res) => {
 
     const result = await collection
       .find({ userEmail: email })
+      .sort({ createdAt: -1 })
       .toArray();
+
+    const data = result.map((doc) => ({
+      ...doc,
+      _id: String(doc._id),
+      doctorId: doc.doctorId ? String(doc.doctorId) : doc.doctorId,
+    }));
 
     res.json({
       success: true,
-      data: result,
+      data,
     });
   } catch (error) {
     res.status(500).json({
