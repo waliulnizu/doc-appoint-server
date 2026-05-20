@@ -38,8 +38,19 @@ const getDB = () => {
   return db;
 };
 
+const getClient = () => {
+  if (!client) {
+    throw new Error(
+      "MongoDB client is not connected. Call connectDB() first."
+    );
+  }
+
+  return client;
+};
+
 module.exports = {
   connectDB,
   closeDB,
   getDB,
+  getClient,
 };

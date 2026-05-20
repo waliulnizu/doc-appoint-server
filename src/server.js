@@ -1,12 +1,14 @@
 require("dotenv").config();
 
 const app = require("./app");
-const { connectDB, closeDB } = require("./config/db");
+const { connectDB, closeDB, getClient } = require("./config/db");
+const { initAuth } = require("./config/auth");
 
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   await connectDB();
+  initAuth(getClient());
 
   const server = app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
