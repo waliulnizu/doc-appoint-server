@@ -13,6 +13,7 @@ function buildSocialProviders() {
     providers.google = {
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      prompt: "select_account",
     };
   }
 
@@ -29,8 +30,10 @@ function initAuth(mongoClient) {
 
   const socialProviders = buildSocialProviders();
 
+  // Must match Google OAuth redirect host (client URL when using Next rewrite).
   const baseURL =
     process.env.BETTER_AUTH_URL ||
+    process.env.CLIENT_URL ||
     `http://localhost:${process.env.PORT || 5000}`;
 
   const clientOrigin =
