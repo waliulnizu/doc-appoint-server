@@ -1,2 +1,6 @@
 .env
 node_modules
+
+# local / editor logs (not project code)
+debug.log
+**/debug.log
