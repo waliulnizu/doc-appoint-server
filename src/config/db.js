@@ -4,6 +4,10 @@ let client;
 let db;
 
 const connectDB = async () => {
+  if (client) {
+    return;
+  }
+
   try {
     client = new MongoClient(process.env.MONGO_URI, {
       serverApi: {
