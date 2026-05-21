@@ -21,34 +21,24 @@ const allowedOrigins = [
   "http://localhost:3000",
   "https://doc-appoint-client-sepia.vercel.app",
   clientOrigin,
-].filter(Boolean);
+]
+  .filter(Boolean)
+  .filter((value, index, self) => self.indexOf(value) === index);
 
 // ===============================
 // Middleware
 // ===============================
 
-// Debug middleware (optional)
-app.use((req, res, next) => {
-  console.log("Incoming Origin:", req.headers.origin);
-  next();
-});
-
 // CORS Middleware
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests without origin
-      // (Postman, mobile apps, curl, etc.)
       if (!origin) {
         return callback(null, true);
       }
 
-      console.log("CORS Origin:", origin);
-      console.log("Allowed Origins:", allowedOrigins);
-
-      // Check allowed origins
       if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
+        return callback(null, origin);
       }
 
       return callback(new Error("Not allowed by CORS"));
@@ -57,6 +47,7 @@ app.use(
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    optionsSuccessStatus: 200,
   })
 );
 
