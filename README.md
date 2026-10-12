@@ -134,7 +134,7 @@ Because the frontend is hosted on Vercel and the API on Render:
 ### Dynamic Content & Platform Statistics
 
 - **`/api/stats`**: Aggregates total count of registered doctors, booked appointments, completed consultations, and active patients.
-- **`/api/content/:section`**: Supplies dynamic marketing content (departments, testimonials, FAQs, blogs) for the frontend landing page.
+- **`/api/content`**: Supplies dynamic marketing content (departments, testimonials, FAQs, reasons, steps, geriatrics, blogs, slides) for the frontend landing page.
 
 ---
 
@@ -143,16 +143,15 @@ Because the frontend is hosted on Vercel and the API on Render:
 ### Health & Auth
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/` | Basic server health ping (`{ "status": "ok" }`) |
-| `GET` | `/health` | Full server and database health verification |
+| `GET` | `/` | Basic server ping (`DocAppoint API is running 🚀`) |
+| `GET` | `/health` | Health verification (`{ "success": true, "message": "DocAppoint API is healthy" }`) |
 | `*` | `/api/auth/*` | Better Auth handlers (register, login, logout, session, Google OAuth) |
 
 ### Doctors
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/doctors` | Retrieve all doctor profiles |
+| `GET` | `/api/doctors` | Retrieve all doctor profiles. Supports query params: `?search=` (name/specialty/hospital), `?specialty=` (exact match), `?sort=rating`, `?limit=` |
 | `GET` | `/api/doctors/:id` | Retrieve single doctor by MongoDB ObjectId |
-| `GET` | `/api/doctors/search?q=` | Search doctors by name or specialty |
 | `POST` | `/api/doctors` | Create new doctor profile (Admin / Seed) |
 
 ### Appointments & Slots
@@ -173,8 +172,8 @@ Because the frontend is hosted on Vercel and the API on Render:
 ### Statistics & Content
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/stats` | Platform statistics (totals for doctors, appointments, patients) |
-| `GET` | `/api/content/:section` | Landing page dynamic content (departments, faqs, blogs, etc.) |
+| `GET` | `/api/stats` | Platform statistics (totals for doctors, appointments, reviews, specialties, hospitals) |
+| `GET` | `/api/content` | Landing page dynamic content (departments, testimonials, faqs, reasons, steps, geriatrics, posts, slides) |
 
 ---
 
@@ -192,15 +191,19 @@ Because the frontend is hosted on Vercel and the API on Render:
   "appointmentDate": "2026-06-20",
   "appointmentTime": "10:30",
   "doctorId": "674abc123def456ghi789jkl",
-  "doctorName": "Dr. Sarah Jenkins"
+  "doctorName": "Dr. Sarah Jenkins",
+  "bookedFor": "self",
+  "relation": ""
 }
 ```
+
+> `bookedFor` is `"self"` or `"family"` (family bookings also send `relation`, e.g. `"Spouse"`). The same doctor + date + time slot cannot be booked twice (`409`).
 
 **Success Response (`201 Created`):**
 ```json
 {
   "success": true,
-  "message": "Appointment booked successfully",
+  "message": "Appointment created successfully",
   "data": {
     "_id": "674def123abc456789012345",
     "patientName": "Waliul Islam",
@@ -211,7 +214,8 @@ Because the frontend is hosted on Vercel and the API on Render:
     "appointmentTime": "10:30",
     "doctorId": "674abc123def456ghi789jkl",
     "doctorName": "Dr. Sarah Jenkins",
-    "status": "pending",
+    "bookedFor": "self",
+    "relation": "",
     "createdAt": "2026-06-12T08:00:00.000Z"
   }
 }
@@ -254,7 +258,7 @@ Because the frontend is hosted on Vercel and the API on Render:
 | Collection | Description | Key Fields |
 |---|---|---|
 | `doctors` | Doctor profiles & schedules | `name`, `specialty`, `fee`, `rating`, `image`, `location`, `description`, `availableDays`, `availableTime` |
-| `appointments` | Booked appointments | `patientName`, `userEmail`, `gender`, `phone`, `appointmentDate`, `appointmentTime`, `doctorId`, `doctorName`, `status` |
+| `appointments` | Booked appointments | `patientName`, `userEmail`, `gender`, `phone`, `appointmentDate`, `appointmentTime`, `doctorId`, `doctorName`, `bookedFor` (`self`/`family`), `relation`, `createdAt` |
 | `reviews` | Patient feedback | `doctorId`, `userEmail`, `userName`, `rating`, `comment`, `createdAt` |
 | `user` | Better Auth registered users | `name`, `email`, `emailVerified`, `image`, `createdAt` |
 | `session` | Active user sessions | `userId`, `token`, `expiresAt`, `ipAddress`, `userAgent` |
@@ -315,6 +319,7 @@ GOOGLE_CLIENT_SECRET=GOCSPX-your-google-client-secret
 
 ### 1. Prerequisites
 - **Node.js**: `v20.x` or higher
+- **Package Manager**: `pnpm` (this project uses `pnpm` — `pnpm-lock.yaml` is the lockfile)
 - **MongoDB Atlas**: An active cluster (Free tier works perfectly)
 - **OpenSSL**: For generating security secrets
 
@@ -326,7 +331,7 @@ cd doc-appoint-server
 
 ### 3. Install Dependencies
 ```bash
-npm install
+pnpm install
 ```
 
 ### 4. Create and Configure `.env`
@@ -341,7 +346,7 @@ Paste this value into `.env` along with your MongoDB URI.
 
 ### 5. Start Development Server
 ```bash
-npm run dev
+pnpm dev
 ```
 
 The server starts on **[http://localhost:5000](http://localhost:5000)**.  
@@ -386,8 +391,8 @@ git push origin main
 - **Region**: Singapore (or region closest to your users)
 - **Branch**: `main`
 - **Runtime**: `Node`
-- **Build Command**: `npm install`
-- **Start Command**: `npm start`
+- **Build Command**: `pnpm install`
+- **Start Command**: `pnpm start`
 - **Instance Type**: `Free`
 
 ### 4. Set Environment Variables on Render
