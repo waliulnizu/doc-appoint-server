@@ -18,6 +18,7 @@
   - [Dynamic Content & Platform Statistics](#dynamic-content--platform-statistics)
 - [API Reference & Endpoints](#-api-reference--endpoints)
   - [Request / Response Examples](#request--response-examples)
+- [Full Route List with Live Links](#-full-route-list-with-live-links)
 - [Database Schema & Collections](#-database-schema--collections)
 - [Environment Variables](#-environment-variables)
 - [Local Development Setup](#-local-development-setup)
@@ -136,6 +137,35 @@ Because the frontend is hosted on Vercel and the API on Render:
 - **`/api/stats`**: Aggregates total count of registered doctors, booked appointments, completed consultations, and active patients.
 - **`/api/content`**: Supplies dynamic marketing content (departments, testimonials, FAQs, reasons, steps, geriatrics, blogs, slides) for the frontend landing page.
 
+### End-to-End: How the Project Works
+
+**1. Boot (`src/server.js` → `src/config/db.js` → `src/config/auth.js`)**
+1. `dotenv` loads `.env` (`MONGO_URI, DB_NAME, BETTER_AUTH_SECRET, CLIENT_URL, BETTER_AUTH_URL, GOOGLE_*`).
+2. `connectDB()` opens one shared `MongoClient` (singleton), pings admin DB, selects `DB_NAME`.
+3. `initAuth(mongoClient)` builds Better Auth **only after DB is connected** — `mongodbAdapter` reuses the same client (collections `user, session, account, verification` auto-created). `baseURL = BETTER_AUTH_URL` (the **frontend** URL, because Next.js rewrites proxy `/api/auth/*`), `trustedOrigins = [CLIENT_URL]`, Google provider added only if `GOOGLE_CLIENT_ID/SECRET` exist, with `mapProfileToUser` mapping Google `picture → user.image`.
+4. `app.listen(PORT)` starts Express. `SIGTERM/SIGINT` close HTTP + Mongo gracefully.
+
+**2. Request path (browser → Next.js proxy → Express → MongoDB)**
+1. Patient clicks in the Vercel frontend; browser calls same-origin `/api/...`.
+2. `next.config.mjs` rewrites forward it to Render over HTTPS.
+3. Express: `cors()` validates origin (`localhost:3000` or Vercel URL, `credentials: true`) → `express.json()` parses body → matching route handler in `src/routes/*` runs → `getDB()` (no reconnect, shared `db`) queries Atlas → JSON `{ success, data/message }` returns. `ObjectId`s are always serialized to strings so the client can use them in URLs.
+
+**3. Auth flow**
+- Email register/login: Better Auth hashes passwords, stores `user + account + session`, sets HTTP-only `better-auth.session_token` cookie on the **client domain** (first-party via proxy, so no third-party-cookie block).
+- Google: frontend → `/api/auth/sign-in/social` (proxied) → Google consent → callback to `<CLIENT_URL>/api/auth/callback/google` → user created/found (photo mapped), session cookie set → redirect to dashboard. `useSession.jsx` + protected `/dashboard` route enforce login client-side.
+
+**4. Discovery → slots → booking flow**
+1. `/doctors` page calls `GET /api/doctors?search=&specialty=&sort=&limit=`; doctor cards link to `/doctors/[id]`.
+2. Booking modal picks a date in `Calendar.js`, then calls `GET /api/appointments/slots/:doctorId?date=` — server builds every 30-min slot 09:00–18:00, marks past slots (60-min buffer for today) and already-booked times as `Booked`.
+3. `POST /api/appointments` validates (`gender` Male/Female, family bookings need `patientName` + `relation`), rejects double booking (`doctorId + date + time` → `409`), stores `bookedFor (self/family)`.
+4. Dashboard lists via `GET /api/appointments/user/:email`; edit = `PUT /:id`, cancel = `DELETE /:id`.
+
+**5. Review → rating flow**
+`POST /api/reviews` checks: doctor exists → user has an appointment with that doctor (`403` otherwise) → no duplicate review (`409`) → inserts review → recomputes average rating from **all** that doctor's reviews and writes `doctors.rating`. `GET /api/reviews/doctor/:doctorId` feeds the doctor profile page; latest 6 also feed `/api/content` testimonials.
+
+**6. Homepage data flow**
+`page.js` fires `Promise.all([getDoctors(), getStats(), getContent()])`: stats counters from live `countDocuments`, departments/testimonials derived live from `doctors`/`reviews` collections, everything else (slides, FAQs, reasons, steps, geriatrics, posts) served as curated static payload from `content.route.js` so the landing page never breaks on empty DB.
+
 ---
 
 ## 🗺️ API Reference & Endpoints
@@ -174,6 +204,37 @@ Because the frontend is hosted on Vercel and the API on Render:
 |---|---|---|
 | `GET` | `/api/stats` | Platform statistics (totals for doctors, appointments, reviews, specialties, hospitals) |
 | `GET` | `/api/content` | Landing page dynamic content (departments, testimonials, faqs, reasons, steps, geriatrics, posts, slides) |
+
+---
+
+## 🔗 Full Route List with Live Links
+
+Base URL (production): `https://doc-appoint-server-mod0.onrender.com`
+Local development: replace with `http://localhost:5000`.
+
+| # | Method | Full Live Link | What It Does |
+|---|---|---|---|
+| 1 | `GET` | [https://doc-appoint-server-mod0.onrender.com/](https://doc-appoint-server-mod0.onrender.com/) | Server ping — returns `DocAppoint API is running 🚀` |
+| 2 | `GET` | [https://doc-appoint-server-mod0.onrender.com/health](https://doc-appoint-server-mod0.onrender.com/health) | Health check — returns `{ success: true, message: ... }` |
+| 3 | `POST` | `https://doc-appoint-server-mod0.onrender.com/api/auth/sign-up/email` | Register with name, email, password (Better Auth hashes password, sets session cookie) |
+| 4 | `POST` | `https://doc-appoint-server-mod0.onrender.com/api/auth/sign-in/email` | Login with email + password, issues session cookie |
+| 5 | `GET` | `https://doc-appoint-server-mod0.onrender.com/api/auth/get-session` | Returns the currently logged-in user, or `null` |
+| 6 | `POST` | `https://doc-appoint-server-mod0.onrender.com/api/auth/sign-out` | Revokes session, clears cookie |
+| 7 | `GET` | `https://doc-appoint-server-mod0.onrender.com/api/auth/sign-in/social?provider=google` | Starts Google OAuth login (redirects via client `/api/auth/callback/google`) |
+| 8 | `GET` | [https://doc-appoint-server-mod0.onrender.com/api/doctors](https://doc-appoint-server-mod0.onrender.com/api/doctors) | All doctors. Filters: `?search=cardio` (name/specialty/hospital), `?specialty=Cardiologist`, `?sort=rating`, `?limit=6` |
+| 9 | `GET` | `https://doc-appoint-server-mod0.onrender.com/api/doctors/<doctorId>` | Single doctor by MongoDB ObjectId (replace `<doctorId>` with a real `_id`) |
+| 10 | `POST` | `https://doc-appoint-server-mod0.onrender.com/api/doctors` | Create doctor profile (admin/seed), JSON body |
+| 11 | `GET` | `https://doc-appoint-server-mod0.onrender.com/api/appointments/slots/<doctorId>?date=2026-06-20` | 30-min slots (09:00–18:00) for a doctor on a date, each marked `Available`/`Booked` |
+| 12 | `POST` | `https://doc-appoint-server-mod0.onrender.com/api/appointments` | Book appointment (`patientName, userEmail, gender, phone, appointmentDate, appointmentTime, doctorId, bookedFor, relation`). Same slot twice → `409` |
+| 13 | `GET` | `https://doc-appoint-server-mod0.onrender.com/api/appointments/user/<email>` | All bookings of one patient, newest first |
+| 14 | `PUT` | `https://doc-appoint-server-mod0.onrender.com/api/appointments/<appointmentId>` | Reschedule/edit an appointment |
+| 15 | `DELETE` | `https://doc-appoint-server-mod0.onrender.com/api/appointments/<appointmentId>` | Cancel/delete an appointment |
+| 16 | `POST` | `https://doc-appoint-server-mod0.onrender.com/api/reviews` | Submit 1–5 star review (only after booking that doctor; one review per user per doctor; auto-updates doctor rating) |
+| 17 | `GET` | `https://doc-appoint-server-mod0.onrender.com/api/reviews/doctor/<doctorId>` | All reviews of one doctor, newest first |
+| 18 | `GET` | [https://doc-appoint-server-mod0.onrender.com/api/stats](https://doc-appoint-server-mod0.onrender.com/api/stats) | Homepage counters: total doctors, appointments, reviews, specialties, hospitals |
+| 19 | `GET` | [https://doc-appoint-server-mod0.onrender.com/api/content](https://doc-appoint-server-mod0.onrender.com/api/content) | Homepage bundle: departments, testimonials, faqs, reasons, steps, geriatrics, posts, slides |
+
+> ⚠️ **Route order matters:** `GET /api/appointments/slots/:doctorId` is registered in `src/app.js` **before** `/api/appointments`, otherwise the `/:id` param route would swallow `slots/...` as an appointment id.
 
 ---
 
