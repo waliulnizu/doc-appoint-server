@@ -184,7 +184,7 @@ Because the frontend is hosted on Vercel and the API on Render:
 **Request Body:**
 ```json
 {
-  "patientName": "Waliul Islam",
+  "patientName": "S.M. Waliul Hasan",
   "userEmail": "waliul@example.com",
   "gender": "Male",
   "phone": "01712345678",
@@ -206,7 +206,7 @@ Because the frontend is hosted on Vercel and the API on Render:
   "message": "Appointment created successfully",
   "data": {
     "_id": "674def123abc456789012345",
-    "patientName": "Waliul Islam",
+    "patientName": "S.M. Waliul Hasan",
     "userEmail": "waliul@example.com",
     "gender": "Male",
     "phone": "01712345678",
@@ -228,7 +228,7 @@ Because the frontend is hosted on Vercel and the API on Render:
 {
   "doctorId": "674abc123def456ghi789jkl",
   "userEmail": "waliul@example.com",
-  "userName": "Waliul Islam",
+  "userName": "S.M. Waliul Hasan",
   "rating": 5,
   "comment": "Exceptional doctor. Diagnosed my condition accurately and explained everything clearly!"
 }
@@ -243,7 +243,7 @@ Because the frontend is hosted on Vercel and the API on Render:
     "_id": "674rev1234567890abcdef12",
     "doctorId": "674abc123def456ghi789jkl",
     "userEmail": "waliul@example.com",
-    "userName": "Waliul Islam",
+    "userName": "S.M. Waliul Hasan",
     "rating": 5,
     "comment": "Exceptional doctor. Diagnosed my condition accurately...",
     "createdAt": "2026-06-20T12:00:00.000Z"
