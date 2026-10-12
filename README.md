@@ -495,5 +495,3 @@ Add each environment variable:
 **S.M. Waliul Hasan Nizu**  
 MERN Stack Developer  
 - GitHub: [@waliulnizu](https://github.com/waliulnizu)
-
-This project is open source and available under the [MIT License](LICENSE).
