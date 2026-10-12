@@ -43,7 +43,32 @@ const getAllDoctors = async (req, res) => {
 
     const doctorsCollection = db.collection("doctors");
 
-    const doctors = await doctorsCollection.find().toArray();
+    // Optional filters: ?search=cardio&specialty=Cardiology&sort=rating&limit=6
+    const { search, specialty, sort, limit } = req.query;
+
+    const query = {};
+
+    if (search && typeof search === "string" && search.trim() !== "") {
+      const regex = new RegExp(search.trim(), "i");
+      query.$or = [{ name: regex }, { specialty: regex }, { hospital: regex }];
+    }
+
+    if (specialty && typeof specialty === "string" && specialty.trim() !== "") {
+      query.specialty = new RegExp(`^${specialty.trim()}$`, "i");
+    }
+
+    let cursor = doctorsCollection.find(query);
+
+    if (sort === "rating") {
+      cursor = cursor.sort({ rating: -1 });
+    }
+
+    const parsedLimit = Number.parseInt(limit, 10);
+    if (Number.isInteger(parsedLimit) && parsedLimit > 0) {
+      cursor = cursor.limit(parsedLimit);
+    }
+
+    const doctors = await cursor.toArray();
 
     res.status(200).json({
       success: true,

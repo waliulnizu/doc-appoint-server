@@ -6,6 +6,9 @@ const doctorRoute = require("./routes/doctor.route");
 const authRoute = require("./routes/auth.route");
 const appointmentRoute = require("./routes/appointment.route");
 const reviewRoute = require("./routes/review.route");
+const statsRoute = require("./routes/stats.route");
+const contentRoute = require("./routes/content.route");
+const slotRoute = require("./routes/slot.route");
 
 const app = express();
 
@@ -60,8 +63,13 @@ app.use(express.json());
 app.use("/", healthRoute);
 app.use("/api/auth", authRoute);
 app.use("/api/doctors", doctorRoute);
+// Slot route must be registered BEFORE appointmentRoute,
+// otherwise /:id inside appointmentRoute swallows /slots/:doctorId
+app.use("/api/appointments/slots", slotRoute);
 app.use("/api/appointments", appointmentRoute);
 app.use("/api/reviews", reviewRoute);
+app.use("/api/stats", statsRoute);
+app.use("/api/content", contentRoute);
 
 // ===============================
 // Export App

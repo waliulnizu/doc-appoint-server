@@ -45,6 +45,8 @@ router.post("/", async (req, res) => {
       appointmentTime,
       doctorId,
       doctorName,
+      bookedFor,
+      relation,
     } = req.body;
 
     if (
@@ -62,6 +64,20 @@ router.post("/", async (req, res) => {
       });
     }
 
+    if (gender !== "Male" && gender !== "Female") {
+      return res.status(400).json({
+        success: false,
+        message: "Gender must be Male or Female",
+      });
+    }
+
+    if (bookedFor === "family" && !patientName.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Patient name is required when booking for family",
+      });
+    }
+
     const doctorObjectId = parseObjectId(doctorId);
 
     if (!doctorObjectId) {
@@ -74,9 +90,25 @@ router.post("/", async (req, res) => {
     const db = getDB();
     const collection = db.collection("appointments");
 
+    // Prevent double booking: same doctor + same date + same slot
+    const slotTaken = await collection.findOne({
+      doctorId: doctorObjectId,
+      appointmentDate,
+      appointmentTime,
+    });
+
+    if (slotTaken) {
+      return res.status(409).json({
+        success: false,
+        message: "This time slot is already booked. Please choose another slot.",
+      });
+    }
+
     const appointment = {
       patientName: patientName.trim(),
       userEmail: userEmail.trim(),
+      bookedFor: bookedFor === "family" ? "family" : "self",
+      relation: relation ? relation.trim() : "",
       gender,
       phone: phone.trim(),
       appointmentDate,
